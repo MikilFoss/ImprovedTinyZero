@@ -20,11 +20,12 @@ class ClassicMCTSAgent:
 
 
 class AlphaZeroAgent:
-  def __init__(self, model, optimizer=None, replay_buffer_max_size=None):
+  def __init__(self, model, optimizer=None, replay_buffer_max_size=None, lr_scheduler=None):
     self.model = model
     # optimizer and training buffer might be None if the agent is used for evaluation only
     self.optimizer = optimizer
     self.replay_buffer = ReplayBuffer(max_size=replay_buffer_max_size)
+    self.lr_scheduler = lr_scheduler
 
   def value_fn(self, game):
     observation = torch.tensor(game.to_observation(), device=self.model.device, requires_grad=False)
@@ -54,19 +55,21 @@ class AlphaZeroAgent:
 
     return first_person_result, buffer
 
-  def save_training_state(self, model_out_path, optimizer_out_path):
+  def save_training_state(self, model_out_path, optimizer_out_path, lr_scheduler_out_path):
     torch.save(self.model.state_dict(), model_out_path)
     torch.save(self.optimizer.state_dict(), optimizer_out_path)
+    torch.save(self.lr_scheduler.state_dict(), lr_scheduler_out_path)
 
-  def load_training_state(self, model_out_path, optimizer_out_path):
+  def load_training_state(self, model_out_path, optimizer_out_path, lr_scheduler_out_path):
     self.model.load_state_dict(torch.load(model_out_path))
     self.optimizer.load_state_dict(torch.load(optimizer_out_path))
+    self.lr_scheduler.load_state_dict(torch.load(lr_scheduler_out_path))
 
   def train_step(self, game, search_iterations, batch_size, epochs, c_puct=1.0, dirichlet_alpha=None):
     first_person_result, game_buffer = self.selfplay(
       game, search_iterations, c_puct=c_puct, dirichlet_alpha=dirichlet_alpha
     )
-
+    
     result = game.swap_result(first_person_result)
     while len(game_buffer) > 0:
       observation, action_dist = game_buffer.pop()
@@ -95,5 +98,6 @@ class AlphaZeroAgent:
 
         values_losses.append(values_loss.item())
         policies_losses.append(policies_loss.item())
-
+    if self.lr_scheduler:
+      self.lr_scheduler.step(np.mean(values_losses) + np.mean(policies_losses))
     return values_losses, policies_losses

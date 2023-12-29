@@ -1,0 +1,68 @@
+from game import Connect4
+from datetime import datetime
+import torch
+import wandb
+from tqdm import tqdm
+import os
+import sys
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+sys.path.append(os.getcwd())
+from models import LinearNetwork  # noqa: E402
+from agents import AlphaZeroAgent  # noqa: E402
+
+OUT_DIR = "connect4/out"
+INIT_FROM_CHECKPOINT = False
+SELFPLAY_GAMES = 1024
+SELFPLAY_GAMES_PER_SAVE = SELFPLAY_GAMES // 4
+BATCH_SIZE = 128
+SEARCH_ITERATIONS = 200
+MAX_REPLAY_BUFFER_SIZE = BATCH_SIZE * 4
+TRAINING_EPOCHS = 5
+LEARNING_RATE = 1e-4
+WEIGHT_DECAY = 1e-4
+C_PUCT = 1.5
+DIRICHLET_ALPHA = 0.3  # set to None to disable
+WANDB_LOG = True
+WANDB_PROJECT_NAME = "tinyalphazero-connect4"
+WANDB_RUN_NAME = "run" + datetime.now().strftime("%Y%m%d-%H%M%S")
+
+if __name__ == "__main__":
+  game = Connect4()
+
+  model = LinearNetwork(game.observation_shape, game.action_space)
+  optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+  scheduler = ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=10, verbose=True)
+
+  agent = AlphaZeroAgent(model, optimizer, MAX_REPLAY_BUFFER_SIZE)
+
+  if INIT_FROM_CHECKPOINT:
+    agent.load_training_state(f"{OUT_DIR}/model.pth", f"{OUT_DIR}/optimizer.pth", f"{OUT_DIR}/lr_scheduler.pth")
+
+  if WANDB_LOG:
+    wandb_run = wandb.init(project=WANDB_PROJECT_NAME, name=WANDB_RUN_NAME)
+
+  os.makedirs(OUT_DIR, exist_ok=True)
+  print("Starting training")
+
+  for i in tqdm(range(SELFPLAY_GAMES)):
+    game.reset()
+
+    values_losses, policies_losses = agent.train_step(
+      game, SEARCH_ITERATIONS, BATCH_SIZE, TRAINING_EPOCHS, c_puct=C_PUCT, dirichlet_alpha=DIRICHLET_ALPHA
+    )
+    if WANDB_LOG:
+      for values_loss, policies_loss in zip(values_losses, policies_losses):
+        wandb.log({"values_loss": values_loss, "policies_loss": policies_loss})
+
+    if i > 0 and i % SELFPLAY_GAMES_PER_SAVE == 0:
+      print("Saving training state")
+      agent.save_training_state(f"{OUT_DIR}/model.pth", f"{OUT_DIR}/optimizer.pth", f"{OUT_DIR}/lr_scheduler.pth")
+
+  if WANDB_LOG:
+    wandb_run.finish()
+
+  print("Training complete")
+
+  print("Saving final training state")
+  agent.save_training_state(f"{OUT_DIR}/model.pth", f"{OUT_DIR}/optimizer.pth")
