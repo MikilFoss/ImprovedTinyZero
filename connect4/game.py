@@ -15,17 +15,32 @@ class Connect4:
     def __str__(self):
         new_arr = []
         for i in range(6):
-            new_arr.append([str(x).ljust(10) for x in self.state[i*7:(i+1)*7]])
+            new_arr.append(['|' + str(x).center(3) + '|' for x in self.state[i*7:(i+1)*7]])
         new_arr.reverse()
+        new_arr.insert(0,[' ' * 5 for _ in range(7)])
+        new_arr.insert(0,['|' + str(i).center(3) + '|' for i in range(7)])
         return '\n'.join([''.join(x) for x in new_arr])
     
     def to_observation(self):
-        obs = np.zeros(self.STATE_LEN, dtype=np.float32)
-        for i, x in enumerate(self.state):
-            if x == self.turn:
-                obs[i] = 1
-            elif x == -self.turn:
-                obs[i] = -1
+        # The board is 6 rows by 7 columns
+        rows, columns = 6, 7
+
+        # Create an empty 3D array with 3 channels, 6 rows, and 7 columns
+        obs = np.zeros((3, rows, columns), dtype=np.float32)
+
+        for row in range(rows):
+            for col in range(columns):
+                index = row * 7 + col
+                if self.state[index] == self.turn:
+                    # Current player's pieces
+                    obs[0, row, col] = 1
+                elif self.state[index] == -self.turn:
+                    # Opponent's pieces
+                    obs[1, row, col] = 1
+                else:
+                    # Empty cells
+                    obs[2, row, col] = 1
+
         return obs
     def get_legal_actions(self):
         legal_actions = []
@@ -84,5 +99,3 @@ class Connect4:
     @staticmethod
     def swap_result(result):
         return -result
-
-
