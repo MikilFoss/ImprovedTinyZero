@@ -97,9 +97,9 @@ class AlphaZeroAgent:
 
         (values_loss + policies_loss).backward()
         self.optimizer.step()
-        values_losses.append(values_loss.item())
-        policies_losses.append(policies_loss.item())
+        values_losses.append(values_loss.item().cpu())
+        policies_losses.append(policies_loss.item().cpu())
       avg_loss = np.mean(values_losses) + np.mean(policies_losses)
       if self.lr_scheduler:
         self.lr_scheduler.step(avg_loss)
-    return values_losses.cpu(), policies_losses.cpu()
+    return values_losses, policies_losses
