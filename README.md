@@ -72,6 +72,27 @@ Train on one of the environments (select a GPU runtime for faster training):
 !cd tinyzero; python3 tictactoe/two_dim/train.py
 ```
 And evaluate:
+
 ```bash
 !cd tinyzero; python3 tictactoe/two_dim/eval.py
 ```
+
+## Train Pylos
+
+Train an AlphaZero agent on the Pylos environment with:
+
+```bash
+python3 pylos/train.py
+```
+
+## Play Pylos
+
+A simple command line implementation of the board game **Pylos** is available.
+Run the following command to play a match between two players:
+
+```bash
+python3 pylos/play.py
+```
+
+Follow the on-screen instructions to place spheres, raise them onto higher
+levels and remove your own pieces when allowed.
