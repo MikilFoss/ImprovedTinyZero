@@ -96,3 +96,15 @@ python3 pylos/play.py
 
 Follow the on-screen instructions to place spheres, raise them onto higher
 levels and remove your own pieces when allowed.
+
+You can also challenge the trained AI. After training is complete run:
+
+```bash
+python3 pylos/play_ai.py --model pylos/out/model.pth --first
+```
+
+Remove `--first` if you want the AI to move first. Use `--search` to adjust the
+number of simulations used by the AI during its turn.
+The command interface matches `play.py`, so you can use the same `place` and `raise`
+commands when it's your turn. The AI will also attempt raise moves on its own and
+automatically remove its pieces after completing a square or line.
