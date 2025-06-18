@@ -106,4 +106,6 @@ python3 pylos/play_ai.py --model pylos/out/model.pth --first
 Remove `--first` if you want the AI to move first. Use `--search` to adjust the
 number of simulations used by the AI during its turn.
 The command interface matches `play.py`, so you can use the same `place` and `raise`
-commands when it's your turn.
+commands when it's your turn. During its turn the AI may raise its own spheres
+when advantageous and will automatically remove pieces after forming a square
+or line.

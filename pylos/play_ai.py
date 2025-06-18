@@ -1,9 +1,10 @@
 import argparse
-import os
 import sys
+from pathlib import Path
+import copy
 import torch
 
-sys.path.append(os.getcwd())
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from agents import AlphaZeroAgent
 from game import PylosGame
@@ -16,6 +17,46 @@ def parse_coords(text):
     if len(parts) != 3:
         raise ValueError
     return tuple(int(p) for p in parts)
+
+
+def find_ai_raises(game):
+    moves = []
+    for sl, layer in enumerate(game.board[:-1]):
+        for sr in range(layer.shape[0]):
+            for sc in range(layer.shape[1]):
+                if layer[sr, sc] == game.turn and not game.piece_has_top(sl, sr, sc):
+                    for dl in range(sl + 1, len(game.board)):
+                        size = game.board[dl].shape[0]
+                        for dr in range(size):
+                            for dc in range(size):
+                                if game.board[dl][dr, dc] == 0 and game.is_supported(dl, dr, dc):
+                                    moves.append(((sl, sr, sc), (dl, dr, dc)))
+    return moves
+
+
+def evaluate_raise(game, move):
+    temp = copy.deepcopy(game)
+    (sl, sr, sc), (dl, dr, dc) = move
+    if not temp.raise_piece(sl, sr, sc, dl, dr, dc):
+        return -1
+    if temp.top_filled():
+        return 2
+    if temp.check_for_removal():
+        return 1
+    return 0
+
+
+def ai_remove(game):
+    removed = 0
+    for lvl, layer in enumerate(game.board):
+        for r in range(layer.shape[0]):
+            for c in range(layer.shape[1]):
+                if layer[r, c] == game.turn and not game.piece_has_top(lvl, r, c):
+                    if game.remove(lvl, r, c):
+                        print(f"AI removes: {lvl},{r},{c}")
+                        removed += 1
+                        if removed == 2 or not game.check_for_removal():
+                            return
 
 
 def main():
@@ -85,10 +126,23 @@ def main():
                 print("Invalid input format")
                 continue
         else:
-            action = play(game, agent, args.search, c_puct=1.5)
-            lvl, r, c = game.index_to_coords[action]
-            print(f"AI plays: {lvl},{r},{c}")
-            game.place(lvl, r, c)
+            raise_moves = find_ai_raises(game)
+            best_move = None
+            best_score = -1
+            for mv in raise_moves:
+                score = evaluate_raise(game, mv)
+                if score > best_score:
+                    best_score = score
+                    best_move = mv
+            if best_move and best_score > 0:
+                (sl, sr, sc), (dl, dr, dc) = best_move
+                print(f"AI raises: {sl},{sr},{sc} -> {dl},{dr},{dc}")
+                game.raise_piece(sl, sr, sc, dl, dr, dc)
+            else:
+                action = play(game, agent, args.search, c_puct=1.5)
+                lvl, r, c = game.index_to_coords[action]
+                print(f"AI plays: {lvl},{r},{c}")
+                game.place(lvl, r, c)
 
         if game.check_for_removal():
             if game.turn == human_turn:
@@ -107,8 +161,7 @@ def main():
                         print("Invalid coordinates")
                         continue
             else:
-                # AI skips removals
-                pass
+                ai_remove(game)
 
         game.turn *= -1
 
