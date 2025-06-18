@@ -1,10 +1,9 @@
 import argparse
+import os
 import sys
-from pathlib import Path
-import copy
 import torch
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(os.getcwd())
 
 from agents import AlphaZeroAgent
 from game import PylosGame
@@ -126,6 +125,9 @@ def main():
                 print("Invalid input format")
                 continue
         else:
+            raise_moves = game.get_legal_raises()
+            if raise_moves:
+                sl, sr, sc, dl, dr, dc = raise_moves[0]
             raise_moves = find_ai_raises(game)
             best_move = None
             best_score = -1
@@ -161,7 +163,23 @@ def main():
                         print("Invalid coordinates")
                         continue
             else:
-                ai_remove(game)
+                removed = 0
+                for lvl, layer in enumerate(game.board):
+                    for r in range(layer.shape[0]):
+                        for c in range(layer.shape[1]):
+                            if removed >= 2:
+                                break
+                            if (
+                                layer[r, c] == game.turn
+                                and not game.piece_has_top(lvl, r, c)
+                            ):
+                                game.remove(lvl, r, c)
+                                print(f"AI removes: {lvl},{r},{c}")
+                                removed += 1
+                        if removed >= 2:
+                            break
+                    if removed >= 2:
+                        break
 
         game.turn *= -1
 

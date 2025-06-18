@@ -175,6 +175,25 @@ class PylosGame:
                                             return True
         return False
 
+    def get_legal_raises(self):
+        """Return a list of valid raise moves for the current player.
+
+        Each element is a tuple (sl, sr, sc, dl, dr, dc).
+        """
+        raises = []
+        for sl, layer in enumerate(self.board[:-1]):
+            for sr in range(layer.shape[0]):
+                for sc in range(layer.shape[1]):
+                    if layer[sr, sc] == self.turn and not self.piece_has_top(sl, sr, sc):
+                        for dl in range(sl + 1, len(self.board)):
+                            size = self.board[dl].shape[0]
+                            for dr in range(size):
+                                for dc in range(size):
+                                    if self.board[dl][dr, dc] == 0 and self.is_supported(dl, dr, dc):
+                                        if dl - 1 >= sl:
+                                            raises.append((sl, sr, sc, dl, dr, dc))
+        return raises
+
     # -----------------------------------------------------------
     # AlphaZero training helpers
     def get_legal_actions(self):
